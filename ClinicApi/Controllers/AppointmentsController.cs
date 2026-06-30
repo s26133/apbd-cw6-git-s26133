@@ -128,6 +128,58 @@ public class AppointmentsController : ControllerBase
         return CreatedAtAction(nameof(GetAppointmentDetails), new { idAppointment = newId }, null);
     }
 
+    [HttpPut("{idAppointment}")]
+    public async Task<IActionResult> UpdateAppointment(int idAppointment, [FromBody] UpdateAppointmentRequestDto request)
+    {
+        var validStatuses = new[] { "Scheduled", "Completed", "Cancelled" };
+        if (!validStatuses.Contains(request.Status))
+            return BadRequest(new ErrorResponseDto { Message = "Invalid status." });
+
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var getCommand = new SqlCommand("SELECT Status, AppointmentDate FROM dbo.Appointments WHERE IdAppointment = @IdAppointment", connection);
+        getCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
+
+        await using var reader = await getCommand.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+            return NotFound(new ErrorResponseDto { Message = "Appointment not found." });
+
+        var currentStatus = reader.GetString(0);
+        var currentDate = reader.GetDateTime(1);
+        await reader.CloseAsync();
+
+        if (currentStatus == "Completed" && currentDate != request.AppointmentDate)
+            return BadRequest(new ErrorResponseDto { Message = "Cannot change date of a completed appointment." });
+
+        if (!await CheckIfUserActive(connection, "Patients", "IdPatient", request.IdPatient))
+            return BadRequest(new ErrorResponseDto { Message = "Patient does not exist or is inactive." });
+
+        if (!await CheckIfUserActive(connection, "Doctors", "IdDoctor", request.IdDoctor))
+            return BadRequest(new ErrorResponseDto { Message = "Doctor does not exist or is inactive." });
+
+        if (currentDate != request.AppointmentDate && await CheckDoctorConflict(connection, request.IdDoctor, request.AppointmentDate, idAppointment))
+            return Conflict(new ErrorResponseDto { Message = "Doctor already has an appointment at this time." });
+
+        await using var updateCommand = new SqlCommand("""
+            UPDATE dbo.Appointments
+            SET IdPatient = @IdPatient, IdDoctor = @IdDoctor, AppointmentDate = @AppointmentDate,
+                Status = @Status, Reason = @Reason, InternalNotes = @InternalNotes
+            WHERE IdAppointment = @IdAppointment;
+            """, connection);
+
+        updateCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
+        updateCommand.Parameters.Add("@IdPatient", SqlDbType.Int).Value = request.IdPatient;
+        updateCommand.Parameters.Add("@IdDoctor", SqlDbType.Int).Value = request.IdDoctor;
+        updateCommand.Parameters.Add("@AppointmentDate", SqlDbType.DateTime2).Value = request.AppointmentDate;
+        updateCommand.Parameters.Add("@Status", SqlDbType.NVarChar, 30).Value = request.Status;
+        updateCommand.Parameters.Add("@Reason", SqlDbType.NVarChar, 250).Value = request.Reason;
+        updateCommand.Parameters.Add("@InternalNotes", SqlDbType.NVarChar, 500).Value = (object?)request.InternalNotes ?? DBNull.Value;
+
+        await updateCommand.ExecuteNonQueryAsync();
+        return Ok();
+    }
+
     private async Task<bool> CheckIfUserActive(SqlConnection connection, string table, string idColumn, int id)
     {
         var query = $"SELECT IsActive FROM dbo.{table} WHERE {idColumn} = @Id";

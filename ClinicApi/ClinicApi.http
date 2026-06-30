@@ -48,3 +48,15 @@ Content-Type: application/json
   "appointmentDate": "2026-10-15T14:00:00",
   "reason": "Próba umówienia na zajêty termin"
 }
+### 8. Zaktualizuj wizytê (Zmiana statusu wizyty ID 1)
+PUT {{ClinicApi_HostAddress}}/api/appointments/1
+Content-Type: application/json
+
+{
+  "idPatient": 1,
+  "idDoctor": 1,
+  "appointmentDate": "2026-11-20T10:30:00",
+  "status": "Scheduled",
+  "reason": "Zaktualizowany powód wizyty",
+  "internalNotes": "Zaktualizowana notatka"
+}
