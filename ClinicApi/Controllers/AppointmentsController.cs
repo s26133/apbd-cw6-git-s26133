@@ -73,7 +73,7 @@ public class AppointmentsController : ControllerBase
 
         if (!await reader.ReadAsync())
         {
-            return NotFound();
+            return NotFound(new ErrorResponseDto { Message = "Appointment not found." });
         }
 
         var dto = new AppointmentDetailsDto
@@ -90,5 +90,26 @@ public class AppointmentsController : ControllerBase
         };
 
         return Ok(dto);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentRequestDto request)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var command = new SqlCommand("""
+            INSERT INTO dbo.Appointments (IdPatient, IdDoctor, AppointmentDate, Status, Reason)
+            OUTPUT INSERTED.IdAppointment
+            VALUES (@IdPatient, @IdDoctor, @AppointmentDate, 'Scheduled', @Reason);
+            """, connection);
+
+        command.Parameters.Add("@IdPatient", SqlDbType.Int).Value = request.IdPatient;
+        command.Parameters.Add("@IdDoctor", SqlDbType.Int).Value = request.IdDoctor;
+        command.Parameters.Add("@AppointmentDate", SqlDbType.DateTime2).Value = request.AppointmentDate;
+        command.Parameters.Add("@Reason", SqlDbType.NVarChar, 250).Value = request.Reason;
+
+        var newId = (int)await command.ExecuteScalarAsync()!;
+        return CreatedAtAction(nameof(GetAppointmentDetails), new { idAppointment = newId }, null);
     }
 }

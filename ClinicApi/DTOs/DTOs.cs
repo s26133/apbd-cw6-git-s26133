@@ -22,3 +22,16 @@ public class AppointmentDetailsDto
     public string PatientPhoneNumber { get; set; } = string.Empty;
     public string DoctorLicenseNumber { get; set; } = string.Empty;
 }
+
+public class CreateAppointmentRequestDto
+{
+    public int IdPatient { get; set; }
+    public int IdDoctor { get; set; }
+    public DateTime AppointmentDate { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class ErrorResponseDto
+{
+    public string Message { get; set; } = string.Empty;
+}
