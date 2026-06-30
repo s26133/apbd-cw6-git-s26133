@@ -180,6 +180,29 @@ public class AppointmentsController : ControllerBase
         return Ok();
     }
 
+    [HttpDelete("{idAppointment}")]
+    public async Task<IActionResult> DeleteAppointment(int idAppointment)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+
+        await using var checkCommand = new SqlCommand("SELECT Status FROM dbo.Appointments WHERE IdAppointment = @IdAppointment", connection);
+        checkCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
+
+        var status = (string?)await checkCommand.ExecuteScalarAsync();
+        if (status == null)
+            return NotFound(new ErrorResponseDto { Message = "Appointment not found." });
+
+        if (status == "Completed")
+            return Conflict(new ErrorResponseDto { Message = "Cannot delete a completed appointment." });
+
+        await using var deleteCommand = new SqlCommand("DELETE FROM dbo.Appointments WHERE IdAppointment = @IdAppointment", connection);
+        deleteCommand.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
+        await deleteCommand.ExecuteNonQueryAsync();
+
+        return NoContent();
+    }
+
     private async Task<bool> CheckIfUserActive(SqlConnection connection, string table, string idColumn, int id)
     {
         var query = $"SELECT IsActive FROM dbo.{table} WHERE {idColumn} = @Id";

@@ -60,3 +60,8 @@ Content-Type: application/json
   "reason": "Zaktualizowany powód wizyty",
   "internalNotes": "Zaktualizowana notatka"
 }
+### 9. Usuñ wizytê o statusie Scheduled (ID wizyty)
+DELETE {{ClinicApi_HostAddress}}/api/appointments/1
+
+### 10. Spróbuj usun¹æ wizytê o statusie Completed i sprawdŸ 409 Conflict (wizyta ID 4 ma status Completed)
+DELETE {{ClinicApi_HostAddress}}/api/appointments/4
