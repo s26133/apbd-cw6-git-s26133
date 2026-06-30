@@ -52,4 +52,43 @@ public class AppointmentsController : ControllerBase
 
         return Ok(appointments);
     }
+
+    [HttpGet("{idAppointment}")]
+    public async Task<IActionResult> GetAppointmentDetails(int idAppointment)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+        await using var command = new SqlCommand("""
+            SELECT a.IdAppointment, a.AppointmentDate, a.Status, a.Reason, a.InternalNotes, a.CreatedAt,
+                   p.Email, p.PhoneNumber, d.LicenseNumber
+            FROM dbo.Appointments a
+            JOIN dbo.Patients p ON p.IdPatient = a.IdPatient
+            JOIN dbo.Doctors d ON d.IdDoctor = a.IdDoctor
+            WHERE a.IdAppointment = @IdAppointment;
+            """, connection);
+
+        command.Parameters.Add("@IdAppointment", SqlDbType.Int).Value = idAppointment;
+
+        await connection.OpenAsync();
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return NotFound();
+        }
+
+        var dto = new AppointmentDetailsDto
+        {
+            IdAppointment = reader.GetInt32(0),
+            AppointmentDate = reader.GetDateTime(1),
+            Status = reader.GetString(2),
+            Reason = reader.GetString(3),
+            InternalNotes = reader.IsDBNull(4) ? null : reader.GetString(4),
+            CreatedAt = reader.GetDateTime(5),
+            PatientEmail = reader.GetString(6),
+            PatientPhoneNumber = reader.GetString(7),
+            DoctorLicenseNumber = reader.GetString(8)
+        };
+
+        return Ok(dto);
+    }
 }
