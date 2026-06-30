@@ -1,6 +1,50 @@
-@ClinicApi_HostAddress = http://localhost:5236
+@ClinicApi_HostAddress = http://localhost:5000
 
-GET {{ClinicApi_HostAddress}}/weatherforecast/
+### 1. Pobierz wszystkie wizyty
+GET {{ClinicApi_HostAddress}}/api/appointments
 Accept: application/json
 
-###
+### 2. Pobierz wizyty z filtrem (query string)
+GET {{ClinicApi_HostAddress}}/api/appointments?status=Scheduled&patientLastName=Kowalska
+Accept: application/json
+
+### 3. Pobierz jedn¹ istniej¹c¹ wizytê (ID 1 - Anna Kowalska)
+GET {{ClinicApi_HostAddress}}/api/appointments/1
+Accept: application/json
+
+### 4. SprawdŸ 404 Not Found dla nieistniej¹cej wizyty
+GET {{ClinicApi_HostAddress}}/api/appointments/999
+Accept: application/json
+
+### 5. Dodaj poprawn¹ wizytê (Data musi byæ w przyzs³oœci)
+POST {{ClinicApi_HostAddress}}/api/appointments
+Content-Type: application/json
+
+{
+  "idPatient": 2,
+  "idDoctor": 2,
+  "appointmentDate": "2026-10-15T14:00:00",
+  "reason": "Poprawna wizyta testowa"
+}
+
+### 6. Spróbuj dodaæ wizytê w przesz³oœci i sprawdŸ 400 Bad Request
+POST {{ClinicApi_HostAddress}}/api/appointments
+Content-Type: application/json
+
+{
+  "idPatient": 1,
+  "idDoctor": 1,
+  "appointmentDate": "2020-01-01T10:00:00",
+  "reason": "Wizyta w przesz³oœci"
+}
+
+### 7. Spróbuj dodaæ dwie wizyty tego samego lekarza w tym samym terminie i sprawdŸ 409 Conflict
+POST {{ClinicApi_HostAddress}}/api/appointments
+Content-Type: application/json
+
+{
+  "idPatient": 3,
+  "idDoctor": 2,
+  "appointmentDate": "2026-10-15T14:00:00",
+  "reason": "Próba umówienia na zajêty termin"
+}
